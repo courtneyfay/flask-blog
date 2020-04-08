@@ -1,5 +1,10 @@
 {% extends 'bootstrap/base.html' %}
 
+{% block head %}
+    {{ ckeditor.load() }}
+    {{ super() }}
+{% endblock %}
+
 {% block title %}
 Flask Blog
 {% endblock %}

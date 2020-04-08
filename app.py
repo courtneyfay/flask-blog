@@ -2,6 +2,7 @@ from flask import Flask, render_template, flash, redirect, request, session
 from flask_bootstrap import Bootstrap
 from flask_mysqldb import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_ckeditor import CKEditor
 import yaml
 import os
 
@@ -18,10 +19,19 @@ mysql = MySQL(app)
 
 app.config['SECRET_KEY'] = os.urandom(24)
 
+CKEditor(app)
+
 @app.route('/')
 def index():
     # GET / home page links to all blogs listed here
-    return render_template('index.html')
+    cursor = mysql.connection.cursor()
+    result_value = cursor.execute("SELECT * FROM blog")
+    if result_value > 0:
+        blogs = cursor.fetchall()
+        cursor.close()
+        return render_template('index.html', blogs=blogs)
+    cursor.close()
+    return render_template('index.html', blogs=None)
 
 
 @app.route('/about/')
@@ -33,7 +43,12 @@ def about():
 @app.route('/blogs/<int:id>/')
 def blogs(id):
     # GET /blogs/<int: id>  loads the blogpost with the given id
-    return render_template('blogs.html', blog_id=id)
+    cursor = mysql.connection.cursor()
+    result_value = cursor.execute("SELECT * FROM blog WHERE blog_id = {}".format(id))
+    if result_value > 0:
+        blog = cursor.fetchone()
+        return render_template('blogs.html', blog=blog)
+    return 'Blog not found'
 
 
 @app.route('/register/', methods=['GET', 'POST'])
@@ -89,6 +104,17 @@ def login():
 def write_blog():
     # GET /write-blog loads a form with which the user can write a blogpost
     # POST /write-blog creates a new blog in the database
+    if request.method == 'POST':
+        blog_post = request.form
+        title = blog_post['title']
+        body = blog_post['body']
+        author = session['first_name'] + ' ' + session['last_name']
+        cursor = mysql.connection.cursor()
+        cursor.execute("INSERT INTO blog(title, body, author) VALUES(%s, %s, %s)", (title, body, author))
+        mysql.connection.commit()
+        cursor.close()
+        flash('Successfully posted new blog', 'success')
+        return redirect('/')
     return render_template('write-blog.html')
 
 
